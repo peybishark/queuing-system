@@ -27,6 +27,19 @@ Open:
 - `http://localhost:3000/kiosk`
 - `http://localhost:3000/display`
 - `http://localhost:3000/counter`
+- `http://localhost:3000/setup`
+- `http://localhost:3000/login`
+- `http://localhost:3000/admin`
+- `http://localhost:3000/superadmin`
+
+## Admin flow
+
+1. Open `/setup` once and create the first superadmin account.
+2. Sign in at `/login`.
+3. The superadmin opens `/superadmin` and creates admin accounts.
+4. Admins open `/admin` to add services and seed the default services.
+5. Admins open `/counter` to add counters. Each counter gets a 6-digit pairing code.
+6. A counter browser opens `/counter`, enters the pairing code, and controls only that paired counter.
 
 ## Build
 
@@ -40,6 +53,20 @@ npm start
 - `queueTickets`
 - `queueCounters`
 - `queueSequences`
+- `services`
+- `users`
+
+## Security rules
+
+`firestore.rules` contains a starter ruleset for:
+
+- superadmin-only admin account management
+- admin/superadmin service and counter management
+- public kiosk ticket creation
+- public display reads
+- paired counter write support
+
+Review and deploy the rules before production use.
 
 ## Firestore suggested index
 

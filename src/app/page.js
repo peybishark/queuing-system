@@ -28,6 +28,11 @@ export default function HomePage() {
             <div className="service-title">Counter Control</div>
             <div className="service-prefix">Staff controls</div>
           </Link>
+          <Link className="service-card" href="/login">
+            <div className="service-icon">A</div>
+            <div className="service-title">Admin Login</div>
+            <div className="service-prefix">Services and accounts</div>
+          </Link>
         </div>
       </div>
     </main>

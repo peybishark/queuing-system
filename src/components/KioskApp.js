@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createTicket, initFirebase, SERVICES } from "../lib/firebaseClient";
-import { openCounter, openDisplay, printTicket } from "../lib/queueApp";
+import { DEFAULT_SERVICES, createTicket, initFirebase, listenServices } from "../lib/firebaseClient";
+import { openDisplay, printTicket } from "../lib/queueApp";
 
 function formatStartTime(d) {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
@@ -29,18 +29,25 @@ export default function KioskApp() {
   const [message, setMessage] = useState("");
   const [setupError, setSetupError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [services, setServices] = useState(DEFAULT_SERVICES);
 
   useEffect(() => {
     let cancelled = false;
+    let unsubscribeServices;
     initFirebase()
       .then(({ appConfig }) => {
-        if (!cancelled) setOrgName(appConfig.orgName || "LGU Queuing System");
+        if (cancelled) return;
+        setOrgName(appConfig.orgName || "LGU Queuing System");
+        unsubscribeServices = listenServices((rows) => {
+          setServices(rows.length ? rows : DEFAULT_SERVICES);
+        }, { activeOnly: true });
       })
       .catch((err) => {
         if (!cancelled) setSetupError(err.message);
       });
     return () => {
       cancelled = true;
+      unsubscribeServices?.();
     };
   }, []);
 
@@ -126,14 +133,13 @@ export default function KioskApp() {
           <div className="actions">
             <button className="btn" onClick={() => setStep("start")}>Back</button>
             <button className="btn" onClick={openDisplay}>Display</button>
-            <button className="btn" onClick={openCounter}>Counter</button>
           </div>
         </div>
         <div className="kiosk-services">
           <h1 className="kiosk-heading">Select a service</h1>
           <p className="kiosk-sub">Tap any service to begin your transaction.</p>
           <div className="service-grid">
-            {SERVICES.map((service) => (
+            {services.map((service) => (
               <button
                 className="service-card"
                 key={service.id}

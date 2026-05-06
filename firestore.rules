@@ -1,0 +1,63 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isActiveAdmin() {
+      return signedIn()
+        && userProfile().active == true
+        && (userProfile().role == "admin" || userProfile().role == "superadmin");
+    }
+
+    function isActiveSuperadmin() {
+      return signedIn()
+        && userProfile().active == true
+        && userProfile().role == "superadmin";
+    }
+
+    match /users/{userId} {
+      allow read: if isActiveSuperadmin() || (signedIn() && request.auth.uid == userId);
+      allow create: if isActiveSuperadmin()
+        || (!exists(/databases/$(database)/documents/users/$(userId))
+          && request.resource.data.role == "superadmin"
+          && request.resource.data.active == true);
+      allow update: if isActiveSuperadmin();
+      allow delete: if false;
+    }
+
+    match /services/{serviceId} {
+      allow read: if true;
+      allow create, update, delete: if isActiveAdmin();
+    }
+
+    match /queueCounters/{counterId} {
+      allow read: if true;
+      allow create, delete: if isActiveAdmin();
+      allow update: if isActiveAdmin()
+        || request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["paired", "pairedAt", "pairedDeviceId", "updatedAt", "recallAt", "currentTicketId", "currentQueueNumber", "currentCustomerName", "currentServiceName", "currentPriorityType"]);
+    }
+
+    match /queueTickets/{ticketId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if isActiveAdmin()
+        || request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["status", "counterNo", "counterId", "calledAt", "completedAt", "updatedAt"]);
+      allow delete: if isActiveAdmin();
+    }
+
+    match /queueSequences/{sequenceId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isActiveAdmin();
+    }
+  }
+}

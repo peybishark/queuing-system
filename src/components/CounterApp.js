@@ -4,23 +4,34 @@ import { useEffect, useState } from "react";
 import {
   addCounter,
   callNext,
+  clearPairedCounter,
   completeCounter,
+  getPairedCounterNo,
   initFirebase,
   listenCounters,
+  listenSession,
   listenWaitingTickets,
+  pairCounter,
   recallCounter,
   removeCounter,
   resetTodayQueue,
+  signOutUser,
 } from "../lib/firebaseClient";
 import { openDisplay } from "../lib/queueApp";
 
 export default function CounterApp() {
   const [orgName, setOrgName] = useState("LGU Queuing System");
+  const [profile, setProfile] = useState(null);
+  const [authLoaded, setAuthLoaded] = useState(false);
+  const [pairedCounterNo, setPairedCounterNo] = useState(null);
+  const [pairingCode, setPairingCode] = useState("");
   const [counters, setCounters] = useState([]);
   const [waiting, setWaiting] = useState([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [setupError, setSetupError] = useState("");
+
+  const isAdmin = profile?.active && (profile.role === "admin" || profile.role === "superadmin");
 
   useEffect(() => {
     let unsubscribers = [];
@@ -30,7 +41,16 @@ export default function CounterApp() {
       .then(({ appConfig }) => {
         if (cancelled) return;
         setOrgName(appConfig.orgName || "LGU Queuing System");
-        unsubscribers = [listenCounters(setCounters), listenWaitingTickets(setWaiting)];
+        setPairedCounterNo(getPairedCounterNo());
+        return listenSession(({ profile }) => {
+          setProfile(profile);
+          setAuthLoaded(true);
+        });
+      })
+      .then((unsubscribeSession) => {
+        if (unsubscribeSession) unsubscribers.push(unsubscribeSession);
+        if (cancelled) return;
+        unsubscribers.push(listenCounters(setCounters), listenWaitingTickets(setWaiting));
       })
       .catch((err) => {
         if (!cancelled) setSetupError(err.message);
@@ -47,10 +67,23 @@ export default function CounterApp() {
     setError(nextError);
   }
 
-  async function handleAddCounter() {
+  async function handlePair() {
     try {
-      const result = await addCounter();
-      setNotice(`Created Counter ${result.counterNo}.`);
+      const counter = await pairCounter(pairingCode);
+      setPairedCounterNo(String(counter.counterNo));
+      setPairingCode("");
+      setNotice(`Paired to Counter ${counter.counterNo}.`);
+    } catch (err) {
+      setNotice("", err.message);
+    }
+  }
+
+  async function handleAddCounter() {
+    const label = prompt("Counter label", `Counter ${counters.length + 1}`);
+    if (label === null) return;
+    try {
+      const result = await addCounter(label);
+      setNotice(`Created Counter ${result.counterNo}. Pairing code: ${result.pairingCode}`);
     } catch (err) {
       setNotice("", err.message);
     }
@@ -103,6 +136,12 @@ export default function CounterApp() {
     }
   }
 
+  function unpair() {
+    clearPairedCounter();
+    setPairedCounterNo(null);
+    setNotice("Counter unpaired from this browser.");
+  }
+
   if (setupError) {
     return (
       <div className="page">
@@ -112,9 +151,48 @@ export default function CounterApp() {
   }
 
   const sorted = [...counters].sort((a, b) => Number(a.counterNo) - Number(b.counterNo));
-  const total = sorted.length;
-  const servingCount = sorted.filter((counter) => counter.currentTicketId).length;
+  const visibleCounters = isAdmin ? sorted : sorted.filter((counter) => String(counter.counterNo) === String(pairedCounterNo));
+  const total = visibleCounters.length;
+  const servingCount = visibleCounters.filter((counter) => counter.currentTicketId).length;
   const priorityCount = waiting.filter((ticket) => ticket.priorityType).length;
+
+  if (authLoaded && !isAdmin && !pairedCounterNo) {
+    return (
+      <main className="page">
+        <div className="topbar">
+          <div className="brand">
+            <span className="brand-dot" />
+            <span>{orgName}<span className="brand-sub"> / Pair Counter</span></span>
+          </div>
+          <div className="actions">
+            <a className="btn" href="/login">Admin Login</a>
+          </div>
+        </div>
+        {message ? <div className="notice">{message}</div> : null}
+        {error ? <div className="notice error">{error}</div> : null}
+        <div className="form-wrap">
+          <div className="panel">
+            <div className="ticket-preview">
+              <div className="ticket-preview-label">Counter pairing</div>
+              <div className="ticket-preview-name">Enter the pairing code from the admin counters page.</div>
+            </div>
+            <div className="field">
+              <label htmlFor="pairingCode">Pairing Code</label>
+              <input
+                id="pairingCode"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="000000"
+                value={pairingCode}
+                onChange={(event) => setPairingCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              />
+            </div>
+            <button className="tap-button full" onClick={handlePair}>Pair Counter</button>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="page">
@@ -124,9 +202,17 @@ export default function CounterApp() {
           <span>{orgName}<span className="brand-sub"> / Counter Control</span></span>
         </div>
         <div className="actions">
-          <button className="btn primary" onClick={handleAddCounter}>+ Add Counter</button>
+          {isAdmin ? (
+            <>
+              <button className="btn primary" onClick={handleAddCounter}>+ Add Counter</button>
+              <a className="btn" href="/admin">Admin</a>
+              <button className="btn danger" onClick={handleResetQueue}>Cancel Today</button>
+              <button className="btn" onClick={() => signOutUser()}>Sign Out</button>
+            </>
+          ) : (
+            <button className="btn" onClick={unpair}>Unpair</button>
+          )}
           <button className="btn" onClick={openDisplay}>Open Display</button>
-          <button className="btn danger" onClick={handleResetQueue}>Cancel Today</button>
         </div>
       </div>
 
@@ -148,16 +234,19 @@ export default function CounterApp() {
         </div>
       </div>
 
-      {total === 0 ? (
+      {visibleCounters.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">+</div>
-          <h2 className="empty-title">No counters yet</h2>
-          <p className="empty-text">Tap Add Counter above to create your first counter.</p>
+          <h2 className="empty-title">{isAdmin ? "No counters yet" : "Counter not found"}</h2>
+          <p className="empty-text">
+            {isAdmin ? "Tap Add Counter above to create your first counter." : "Pair this browser again from the counter pairing page."}
+          </p>
         </div>
       ) : (
         <section className="counter-control-grid">
-          {sorted.map((counter) => (
+          {visibleCounters.map((counter) => (
             <ControlCard
+              adminMode={isAdmin}
               counter={counter}
               key={counter.id}
               onCall={handleCall}
@@ -172,7 +261,7 @@ export default function CounterApp() {
   );
 }
 
-function ControlCard({ counter, onCall, onComplete, onRecall, onRemove }) {
+function ControlCard({ adminMode, counter, onCall, onComplete, onRecall, onRemove }) {
   const hasCurrent = Boolean(counter.currentTicketId);
 
   return (
@@ -183,14 +272,18 @@ function ControlCard({ counter, onCall, onComplete, onRecall, onRemove }) {
           {hasCurrent ? "Serving" : "Idle"}
         </span>
       </div>
+      {adminMode ? (
+        <div className="queue-meta">
+          Pairing code: <strong className="tabular">{counter.pairingCode || "none"}</strong>
+          <span> / {counter.paired ? "Paired" : "Not paired"}</span>
+        </div>
+      ) : null}
       <div className="control-current">
         {hasCurrent ? (
           <>
             <div className="control-number tabular">
               {counter.currentQueueNumber}
-              {counter.currentPriorityType ? (
-                <span className="priority-pill">{counter.currentPriorityType}</span>
-              ) : null}
+              {counter.currentPriorityType ? <span className="priority-pill">{counter.currentPriorityType}</span> : null}
             </div>
             <div className="control-name">{counter.currentCustomerName || "Walk-in"}</div>
             <div className="control-service">{counter.currentServiceName || ""}</div>
@@ -214,9 +307,11 @@ function ControlCard({ counter, onCall, onComplete, onRecall, onRemove }) {
             Complete
           </button>
         </div>
-        <button className="btn ghost-danger" disabled={hasCurrent} onClick={() => onRemove(counter.counterNo)}>
-          Remove
-        </button>
+        {adminMode ? (
+          <button className="btn ghost-danger" disabled={hasCurrent} onClick={() => onRemove(counter.counterNo)}>
+            Remove
+          </button>
+        ) : null}
       </div>
     </div>
   );
