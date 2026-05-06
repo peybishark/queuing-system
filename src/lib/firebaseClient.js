@@ -1,15 +1,13 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
 import {
   getFirestore,
   collection,
   doc,
   getDoc,
   setDoc,
-  addDoc,
   updateDoc,
   deleteDoc,
   serverTimestamp,
-  increment,
   runTransaction,
   query,
   where,
@@ -18,24 +16,28 @@ import {
   onSnapshot,
   getDocs,
 } from "firebase/firestore";
+import { getConfig } from "./queueApp";
 
 let app;
 let db;
 let appConfig;
 
 export const SERVICES = [
-  { id: "business_permit", name: "Business Permit", prefix: "BP", icon: "🏢" },
-  { id: "working_permit", name: "Working Permit", prefix: "WP", icon: "🪪" },
-  { id: "pwd_senior_id", name: "PWD / Senior Citizen ID", prefix: "ID", icon: "⭐" },
-  { id: "civil_registry", name: "Civil Registry Documents", prefix: "CR", icon: "📄" },
-  { id: "treasury", name: "Treasury / Payment", prefix: "TR", icon: "💳" },
-  { id: "assessor", name: "Assessor", prefix: "AS", icon: "🏛️" },
+  { id: "business_permit", name: "Business Permit", prefix: "BP", icon: "BP" },
+  { id: "working_permit", name: "Working Permit", prefix: "WP", icon: "WP" },
+  { id: "pwd_senior_id", name: "PWD / Senior Citizen ID", prefix: "ID", icon: "ID" },
+  { id: "civil_registry", name: "Civil Registry Documents", prefix: "CR", icon: "CR" },
+  { id: "treasury", name: "Treasury / Payment", prefix: "TR", icon: "TR" },
+  { id: "assessor", name: "Assessor", prefix: "AS", icon: "AS" },
 ];
 
 export async function initFirebase() {
   if (db) return { db, appConfig };
-  appConfig = await window.queueApp.getConfig();
-  app = initializeApp(appConfig.firebase);
+  appConfig = await getConfig();
+  if (!appConfig.firebase?.apiKey) {
+    throw new Error("Firebase config is missing. Check FIREBASE_* values in .env.");
+  }
+  app = getApps()[0] || initializeApp(appConfig.firebase);
   db = getFirestore(app);
   await ensureCounters();
   return { db, appConfig };
@@ -50,32 +52,34 @@ export function getTodayKey() {
 }
 
 export function getServiceById(id) {
-  return SERVICES.find((s) => s.id === id);
+  return SERVICES.find((service) => service.id === id);
 }
 
 async function ensureCounters() {
   const { db } = await initFirebaseNoEnsure();
   const snap = await getDocs(collection(db, "queueCounters"));
-  if (snap.empty) {
-    const ref = doc(db, "queueCounters", "1");
-    await setDoc(ref, {
-      counterNo: 1,
-      label: "Counter 1",
-      currentTicketId: null,
-      currentQueueNumber: null,
-      currentCustomerName: null,
-      currentServiceName: null,
-      currentPriorityType: null,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  }
+  if (!snap.empty) return;
+
+  await setDoc(doc(db, "queueCounters", "1"), {
+    counterNo: 1,
+    label: "Counter 1",
+    currentTicketId: null,
+    currentQueueNumber: null,
+    currentCustomerName: null,
+    currentServiceName: null,
+    currentPriorityType: null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
 }
 
 async function initFirebaseNoEnsure() {
   if (db) return { db, appConfig };
-  appConfig = await window.queueApp.getConfig();
-  app = initializeApp(appConfig.firebase);
+  appConfig = await getConfig();
+  if (!appConfig.firebase?.apiKey) {
+    throw new Error("Firebase config is missing. Check FIREBASE_* values in .env.");
+  }
+  app = getApps()[0] || initializeApp(appConfig.firebase);
   db = getFirestore(app);
   return { db, appConfig };
 }
@@ -89,16 +93,21 @@ export async function createTicket({ serviceId, customerName, phone, priorityTyp
   const sequenceId = `${serviceDate}_${service.prefix}`;
   const sequenceRef = doc(db, "queueSequences", sequenceId);
 
-  const result = await runTransaction(db, async (tx) => {
+  return runTransaction(db, async (tx) => {
     const sequenceSnap = await tx.get(sequenceRef);
     const current = sequenceSnap.exists() ? Number(sequenceSnap.data().lastNumber || 0) : 0;
     const next = current + 1;
-    tx.set(sequenceRef, {
-      serviceDate,
-      prefix: service.prefix,
-      lastNumber: next,
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
+
+    tx.set(
+      sequenceRef,
+      {
+        serviceDate,
+        prefix: service.prefix,
+        lastNumber: next,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
 
     const queueNumber = `${service.prefix}-${String(next).padStart(3, "0")}`;
     const ticketRef = doc(db, "queueTickets", `${serviceDate}_${queueNumber}`);
@@ -124,11 +133,10 @@ export async function createTicket({ serviceId, customerName, phone, priorityTyp
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
+
     tx.set(ticketRef, ticket);
     return { ...ticket, orgName: appConfig.orgName };
   });
-
-  return result;
 }
 
 export function listenWaitingTickets(callback) {
@@ -173,10 +181,12 @@ export async function callNext(counterNo) {
   const { db } = await initFirebase();
   const counterRef = doc(db, "queueCounters", String(counterNo));
 
-  return await runTransaction(db, async (tx) => {
+  return runTransaction(db, async (tx) => {
     const counterSnap = await tx.get(counterRef);
     const currentTicketId = counterSnap.exists() ? counterSnap.data().currentTicketId : null;
-    if (currentTicketId) throw new Error(`Counter ${counterNo} still has an active ticket. Complete it first.`);
+    if (currentTicketId) {
+      throw new Error(`Counter ${counterNo} still has an active ticket. Complete it first.`);
+    }
 
     const waitingQuery = query(
       collection(db, "queueTickets"),
@@ -197,16 +207,20 @@ export async function callNext(counterNo) {
       calledAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-    tx.set(counterRef, {
-      counterNo,
-      label: `Counter ${counterNo}`,
-      currentTicketId: ticketDoc.id,
-      currentQueueNumber: ticket.queueNumber,
-      currentCustomerName: ticket.customerName || null,
-      currentServiceName: ticket.serviceName,
-      currentPriorityType: ticket.priorityType || null,
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
+    tx.set(
+      counterRef,
+      {
+        counterNo,
+        label: `Counter ${counterNo}`,
+        currentTicketId: ticketDoc.id,
+        currentQueueNumber: ticket.queueNumber,
+        currentCustomerName: ticket.customerName || null,
+        currentServiceName: ticket.serviceName,
+        currentPriorityType: ticket.priorityType || null,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
 
     return { ...ticket, counterNo };
   });
@@ -219,30 +233,36 @@ export async function completeCounter(counterNo) {
   await runTransaction(db, async (tx) => {
     const counterSnap = await tx.get(counterRef);
     if (!counterSnap.exists()) return;
+
     const counter = counterSnap.data();
     if (!counter.currentTicketId) return;
 
-    const ticketRef = doc(db, "queueTickets", counter.currentTicketId);
-    tx.update(ticketRef, {
+    tx.update(doc(db, "queueTickets", counter.currentTicketId), {
       status: "completed",
       completedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-    tx.set(counterRef, {
-      currentTicketId: null,
-      currentQueueNumber: null,
-      currentCustomerName: null,
-      currentServiceName: null,
-      currentPriorityType: null,
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
+    tx.set(
+      counterRef,
+      {
+        currentTicketId: null,
+        currentQueueNumber: null,
+        currentCustomerName: null,
+        currentServiceName: null,
+        currentPriorityType: null,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
   });
 }
 
 export async function recallCounter(counterNo) {
   const { db } = await initFirebase();
-  const counterRef = doc(db, "queueCounters", String(counterNo));
-  await updateDoc(counterRef, { updatedAt: serverTimestamp(), recallAt: serverTimestamp() });
+  await updateDoc(doc(db, "queueCounters", String(counterNo)), {
+    updatedAt: serverTimestamp(),
+    recallAt: serverTimestamp(),
+  });
 }
 
 export async function addCounter(label) {
@@ -253,10 +273,11 @@ export async function addCounter(label) {
     return n > max ? n : max;
   }, 0);
   const counterNo = maxNo + 1;
-  const ref = doc(db, "queueCounters", String(counterNo));
-  await setDoc(ref, {
+  const cleanLabel = (label && label.trim()) || `Counter ${counterNo}`;
+
+  await setDoc(doc(db, "queueCounters", String(counterNo)), {
     counterNo,
-    label: (label && label.trim()) || `Counter ${counterNo}`,
+    label: cleanLabel,
     currentTicketId: null,
     currentQueueNumber: null,
     currentCustomerName: null,
@@ -265,7 +286,8 @@ export async function addCounter(label) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  return { counterNo, label: `Counter ${counterNo}` };
+
+  return { counterNo, label: cleanLabel };
 }
 
 export async function removeCounter(counterNo) {
@@ -282,7 +304,31 @@ export async function removeCounter(counterNo) {
 export async function resetTodayQueue() {
   const { db } = await initFirebase();
   const ticketsQuery = query(collection(db, "queueTickets"), where("serviceDate", "==", getTodayKey()));
-  const snap = await getDocs(ticketsQuery);
-  await Promise.all(snap.docs.map((d) => updateDoc(d.ref, { status: "cancelled", updatedAt: serverTimestamp() })));
-  for (let counterNo = 1; counterNo <= 4; counterNo++) await completeCounter(counterNo).catch(() => null);
+  const ticketsSnap = await getDocs(ticketsQuery);
+  await Promise.all(
+    ticketsSnap.docs.map((d) =>
+      updateDoc(d.ref, {
+        status: "cancelled",
+        updatedAt: serverTimestamp(),
+      })
+    )
+  );
+
+  const countersSnap = await getDocs(collection(db, "queueCounters"));
+  await Promise.all(
+    countersSnap.docs.map((d) =>
+      setDoc(
+        d.ref,
+        {
+          currentTicketId: null,
+          currentQueueNumber: null,
+          currentCustomerName: null,
+          currentServiceName: null,
+          currentPriorityType: null,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+    )
+  );
 }

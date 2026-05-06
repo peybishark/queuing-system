@@ -93,7 +93,7 @@ button { cursor: pointer; border: 0; background: transparent; }
 }
 .kiosk-bg {
   position: absolute; inset: -30px;
-  background: url('./assets/kiosk-bg.jpg') center/cover no-repeat;
+  background: url('/assets/kiosk-bg.jpg') center/cover no-repeat;
   filter: blur(14px) brightness(0.55) saturate(1.1);
   z-index: 0;
 }
