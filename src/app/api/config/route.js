@@ -12,6 +12,10 @@ export function GET() {
       messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "",
       appId: process.env.FIREBASE_APP_ID || "",
     },
-    orgName: process.env.QUEUE_ORG_NAME || "LGU Queuing System",
+    orgName: process.env.QUEUE_ORG_NAME || "",
+    superAdmin: {
+      email: process.env.SUPERADMIN_EMAIL || "superadmin@local.test",
+      password: process.env.SUPERADMIN_PASSWORD || "superadmin123",
+    },
   });
 }

@@ -52,34 +52,56 @@ export async function getConfig() {
 }
 
 export async function printTicket(ticket) {
-  try {
-    const popup = window.open("", "_blank", "width=340,height=560");
-    if (!popup) {
-      return { success: false, failureReason: "Popup blocked. Allow popups to print." };
+  // Electron path — true silent printing via main process IPC. No browser
+  // dialog, no kiosk-printing flag dependency, prints directly to default
+  // printer.
+  if (typeof window !== "undefined" && window.electronQueue?.silentPrint) {
+    try {
+      const result = await window.electronQueue.silentPrint(buildTicketHtml(ticket));
+      return result || { success: true, failureReason: null };
+    } catch (err) {
+      return { success: false, failureReason: err.message };
     }
-
-    popup.document.open();
-    popup.document.write(buildTicketHtml(ticket));
-    popup.document.close();
-    popup.focus();
-
-    setTimeout(() => {
-      try {
-        popup.print();
-      } catch (_) {
-        // The caller receives success for the opened ticket preview.
-      }
-      setTimeout(() => {
-        try {
-          popup.close();
-        } catch (_) {}
-      }, 800);
-    }, 250);
-
-    return { success: true, failureReason: null };
-  } catch (err) {
-    return { success: false, failureReason: err.message };
   }
+
+  // Web fallback — iframe + window.print(). Silent only when the browser was
+  // launched with --kiosk-printing (Edge/Chrome).
+  return new Promise((resolve) => {
+    try {
+      const iframe = document.createElement("iframe");
+      iframe.setAttribute("aria-hidden", "true");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      iframe.style.opacity = "0";
+      document.body.appendChild(iframe);
+
+      const cleanup = () => {
+        setTimeout(() => {
+          try { document.body.removeChild(iframe); } catch (_) { /* ignore */ }
+        }, 1500);
+      };
+
+      iframe.onload = () => {
+        try {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+          resolve({ success: true, failureReason: null });
+        } catch (err) {
+          resolve({ success: false, failureReason: err.message });
+        } finally {
+          cleanup();
+        }
+      };
+
+      iframe.srcdoc = buildTicketHtml(ticket);
+    } catch (err) {
+      resolve({ success: false, failureReason: err.message });
+    }
+  });
 }
 
 export function openDisplay() {
