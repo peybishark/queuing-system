@@ -2896,12 +2896,16 @@ a { color: inherit; text-decoration: none; }
 
 /* ====== DISPLAY MONITOR ====== */
 .display-page {
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  width: 100%;
   display: flex; flex-direction: column;
   background: radial-gradient(ellipse at top, #0F4E47 0%, #042F2E 70%);
   color: #ECFDF5;
-  padding: clamp(20px, 2.5vw, 40px);
-  gap: clamp(18px, 1.8vw, 28px);
+  padding: clamp(14px, 1.6vw, 28px);
+  gap: clamp(12px, 1.2vw, 20px);
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* Truncation utility */
@@ -2910,32 +2914,39 @@ a { color: inherit; text-decoration: none; }
 /* Header */
 .display-header {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 24px;
-  padding-bottom: clamp(14px, 1.4vw, 22px);
+  gap: clamp(12px, 1.5vw, 24px);
+  padding-bottom: clamp(8px, 0.9vw, 16px);
   border-bottom: 1px solid #134E4A;
+  flex-shrink: 0;
+  min-width: 0;
 }
-.display-brand { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.display-brand { display: flex; align-items: center; gap: clamp(10px, 1vw, 16px); min-width: 0; }
+.display-brand-text { min-width: 0; }
 .display-logo {
-  width: clamp(44px, 4vw, 60px); height: clamp(44px, 4vw, 60px);
-  border-radius: 16px;
+  width: clamp(40px, 3.5vw, 56px); height: clamp(40px, 3.5vw, 56px);
+  border-radius: 14px;
   background: linear-gradient(135deg, var(--color-ink-soft), var(--color-ink));
   border: 1px solid rgba(94,234,212,.3);
   display: grid; place-items: center;
-  font-size: clamp(20px, 2vw, 28px); font-weight: 800;
+  font-size: clamp(18px, 1.6vw, 24px); font-weight: 800;
   color: #F0FDFA; letter-spacing: -0.02em;
   box-shadow: 0 4px 16px rgba(20,184,166,.25);
   flex-shrink: 0;
+  overflow: hidden;
 }
 .display-title {
   font-weight: 700; letter-spacing: -0.01em; margin: 0; color: #F0FDFA;
   line-height: 1.1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100%;
 }
 .display-meta {
-  display: flex; align-items: center; gap: 10px;
-  color: #5EEAD4; font-size: clamp(12px, 1vw, 14px);
-  margin-top: 6px; font-weight: 600; letter-spacing: 0.04em;
+  display: flex; align-items: center; gap: 8px;
+  color: #5EEAD4; font-size: clamp(10px, 0.85vw, 13px);
+  margin-top: 4px; font-weight: 600; letter-spacing: 0.04em;
+  min-width: 0;
 }
-.display-meta-sep { opacity: 0.4; }
+.display-meta-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.75; }
 .live-pill {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 3px 10px;
@@ -2964,21 +2975,24 @@ a { color: inherit; text-decoration: none; }
 
 /* Layout */
 .display-layout {
-  flex: 1;
+  flex: 1 1 0;
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
-  gap: clamp(16px, 1.6vw, 24px);
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: clamp(12px, 1.2vw, 20px);
   min-height: 0;
+  overflow: hidden;
 }
-.display-main { display: flex; flex-direction: column; min-height: 0; }
+.display-main { display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
 .display-queue-row {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
   background: linear-gradient(180deg, var(--color-ink-soft), var(--color-ink));
   border: 1px solid #134E4A;
   border-radius: 18px;
-  padding: clamp(14px, 1.4vw, 22px);
+  padding: clamp(12px, 1.2vw, 20px);
+  overflow: hidden;
 }
 
 .display-section-head {
@@ -2987,9 +3001,9 @@ a { color: inherit; text-decoration: none; }
   margin-bottom: clamp(10px, 1vw, 16px);
 }
 .section-tag, .list-title {
-  font-size: clamp(11px, 1vw, 14px);
+  font-size: clamp(10px, 0.85vw, 13px);
   font-weight: 800;
-  text-transform: uppercase; letter-spacing: 0.16em;
+  text-transform: uppercase; letter-spacing: 0.14em;
   color: #5EEAD4;
   margin: 0;
 }
@@ -3001,24 +3015,40 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: 0.04em;
 }
 
-/* Counter grid — auto-fit, uniform rows */
+/* Counter grid — count-aware columns, evenly fills available height */
 .counter-grid {
-  flex: 1;
+  flex: 1 1 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  grid-auto-rows: minmax(clamp(160px, 20vh, 240px), 1fr);
-  gap: clamp(12px, 1.2vw, 18px);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-auto-rows: 1fr;
+  gap: clamp(10px, 1vw, 16px);
   min-height: 0;
-  align-content: start;
+  overflow: hidden;
+}
+/* When few counters, prefer fewer columns so cards stay readable, not stretched */
+.counter-grid[data-count="1"] { grid-template-columns: minmax(280px, 600px); justify-content: center; }
+.counter-grid[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.counter-grid[data-count="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.counter-grid[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.counter-grid[data-count="5"],
+.counter-grid[data-count="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 1080px) {
+  .counter-grid[data-count="3"],
+  .counter-grid[data-count="5"],
+  .counter-grid[data-count="6"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .counter-grid,
+  .counter-grid[data-count] { grid-template-columns: 1fr; }
 }
 .counter-card {
   position: relative;
   display: flex; flex-direction: column;
   background: linear-gradient(180deg, var(--color-ink-soft), var(--color-ink));
   border: 1px solid #134E4A;
-  border-radius: 18px;
-  padding: clamp(20px, 1.8vw, 28px);
-  min-height: clamp(180px, 22vh, 260px);
+  border-radius: 16px;
+  padding: clamp(14px, 1.4vw, 22px);
+  min-height: 0;
   overflow: hidden;
   transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
@@ -3035,16 +3065,21 @@ a { color: inherit; text-decoration: none; }
 .counter-card-head {
   display: flex; align-items: center; justify-content: space-between;
   gap: 8px;
+  min-width: 0;
 }
 .counter-label {
-  font-size: clamp(18px, 1.8vw, 28px);
-  font-weight: 900;
-  text-transform: uppercase; letter-spacing: 0.16em;
+  font-size: clamp(13px, 1.2vw, 18px);
+  font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.14em;
   color: #5EEAD4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 .counter-card.active .counter-label {
   color: #FEF3C7;
-  font-size: clamp(20px, 2.2vw, 34px);
+  font-size: clamp(14px, 1.3vw, 20px);
   text-shadow: 0 1px 8px rgba(0,0,0,.25);
 }
 .counter-state-dot {
@@ -3074,10 +3109,12 @@ a { color: inherit; text-decoration: none; }
 }
 .counter-card.active .current-number { color: #FFFBEB; text-shadow: 0 2px 16px rgba(0,0,0,.4); }
 .current-name {
-  font-size: clamp(15px, 1.4vw, 22px);
-  font-weight: 700;
+  font-size: clamp(13px, 1.1vw, 18px);
+  font-weight: 600;
   color: #F0FDFA;
-  margin-top: clamp(8px, 1vw, 14px);
+  margin-top: clamp(6px, 0.7vw, 12px);
+  opacity: 0.92;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .counter-card.active .current-name { color: #FEFCE8; }
 
@@ -3098,15 +3135,15 @@ a { color: inherit; text-decoration: none; }
 }
 .recall-line {
   font-weight: 900;
-  font-size: clamp(14px, 1.4vw, 22px);
+  font-size: clamp(11px, 1.1vw, 16px);
   letter-spacing: 0.08em;
   line-height: 1.2;
 }
 .recall-sub {
   font-weight: 600;
-  font-size: clamp(12px, 1.1vw, 16px);
-  margin-top: 4px;
-  opacity: 0.95;
+  font-size: clamp(10px, 0.85vw, 13px);
+  margin-top: 3px;
+  opacity: 0.9;
 }
 .recall-sub .tabular { font-weight: 800; }
 @keyframes recall-pulse {
@@ -3126,7 +3163,9 @@ a { color: inherit; text-decoration: none; }
 .counter-card.active .counter-card-foot { border-top-color: rgba(255,255,255,.2); }
 .current-service {
   display: block;
-  color: #99F6E4; font-size: clamp(12px, 1.1vw, 15px); font-weight: 500;
+  color: #99F6E4; font-size: clamp(11px, 0.9vw, 14px); font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  opacity: 0.85;
 }
 .counter-card.active .current-service { color: #FEF3C7; opacity: 0.95; }
 
@@ -3144,13 +3183,14 @@ a { color: inherit; text-decoration: none; }
 
 .priority-pill {
   display: inline-flex; align-items: center;
-  padding: 4px 12px; border-radius: 999px;
+  padding: 3px 10px; border-radius: 999px;
   background: rgba(239,68,68,.18);
   color: #FECACA;
-  font-size: clamp(11px, 1vw, 14px);
+  font-size: clamp(9px, 0.75vw, 11px);
   font-weight: 800; letter-spacing: 0.08em;
   vertical-align: middle;
   border: 1px solid rgba(239,68,68,.3);
+  flex-shrink: 0;
 }
 .counter-card.active .priority-pill { background: rgba(255,255,255,.2); color: #fff; border-color: rgba(255,255,255,.3); }
 
@@ -3177,9 +3217,16 @@ a { color: inherit; text-decoration: none; }
 .display-queue-list {
   display: flex;
   flex-direction: column;
-  gap: clamp(8px, 0.8vw, 12px);
-  overflow: hidden;
+  gap: clamp(6px, 0.6vw, 10px);
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(94,234,212,.3) transparent;
 }
+.display-queue-list::-webkit-scrollbar { width: 6px; }
+.display-queue-list::-webkit-scrollbar-thumb { background: rgba(94,234,212,.3); border-radius: 999px; }
+.display-queue-list::-webkit-scrollbar-track { background: transparent; }
 .list-empty {
   text-align: center;
   color: #5EEAD4; opacity: 0.4;
@@ -3190,22 +3237,23 @@ a { color: inherit; text-decoration: none; }
 .queue-item {
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px;
-  padding: clamp(10px, 1vw, 14px) clamp(12px, 1.2vw, 16px);
-  border-radius: 12px;
+  padding: clamp(8px, 0.8vw, 12px) clamp(10px, 1vw, 14px);
+  border-radius: 10px;
   background: rgba(4,47,46,.6);
   border: 1px solid rgba(94,234,212,.08);
   transition: background 0.12s ease, border-color 0.12s ease;
-  min-height: clamp(54px, 5.5vw, 72px);
+  flex-shrink: 0;
 }
 .queue-item:hover { background: rgba(4,47,46,.9); border-color: rgba(94,234,212,.18); }
 .queue-item-main { min-width: 0; flex: 1; }
 .queue-num {
-  font-size: clamp(18px, 1.6vw, 24px);
-  font-weight: 900;
+  font-size: clamp(15px, 1.3vw, 20px);
+  font-weight: 800;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
   color: var(--color-accent-soft);
   display: flex; align-items: center; gap: 8px;
+  min-width: 0;
 }
 .queue-num .priority-pill { font-size: clamp(10px, 0.85vw, 12px); padding: 2px 8px; }
 .list-box.done .queue-num { color: #6EE7B7; }
@@ -3228,12 +3276,13 @@ a { color: inherit; text-decoration: none; }
 .display-footer {
   display: flex; align-items: center; justify-content: center;
   gap: 10px;
-  padding-top: clamp(10px, 1vw, 16px);
+  padding-top: clamp(8px, 0.8vw, 14px);
   border-top: 1px solid #134E4A;
-  font-size: clamp(11px, 0.95vw, 13px);
+  font-size: clamp(10px, 0.9vw, 13px);
   font-weight: 500;
   color: #5EEAD4; opacity: 0.55;
   letter-spacing: 0.04em;
+  flex-shrink: 0;
 }
 .display-footer-sep { opacity: 0.5; }
 
@@ -3494,41 +3543,60 @@ a { color: inherit; text-decoration: none; }
 .kiosk-heading { font-size: clamp(26px, 3.2vw, 36px); }
 .ticket-number { font-size: clamp(36px, 5vw, 52px); }
 .done-number { font-size: clamp(72px, 11vw, 120px); }
-.display-title { font-size: clamp(22px, 2.6vw, 36px); }
-.display-time { font-size: clamp(26px, 3vw, 42px); }
-.current-number { font-size: clamp(56px, 7.5vw, 130px); }
-.current-empty { font-size: clamp(40px, 5vw, 80px); }
+.display-title { font-size: clamp(20px, 2.2vw, 32px); }
+.display-time { font-size: clamp(22px, 2.6vw, 38px); }
+.current-number { font-size: clamp(40px, min(6vw, 9vh), 96px); }
+.current-empty { font-size: clamp(32px, min(4vw, 6vh), 64px); }
 .control-number { font-size: clamp(26px, 3vw, 40px); }
 .tap-button.start-only { font-size: clamp(18px, 2.2vw, 26px); }
 
-/* ≥1400px — scale up display monitor for big screens */
-@media (min-width: 1400px) {
-  .display-layout { grid-template-columns: minmax(0, 2fr) minmax(340px, 1fr); }
-  .counter-card { min-height: 280px; }
+/* ≥1280px — comfortable side-by-side */
+@media (min-width: 1280px) {
+  .display-layout { grid-template-columns: minmax(0, 2.4fr) minmax(280px, 1fr); }
+}
+
+/* ≥1600px — large displays */
+@media (min-width: 1600px) {
+  .display-layout { grid-template-columns: minmax(0, 2.6fr) minmax(320px, 1fr); }
 }
 
 /* ≥1800px — TV/4K kiosk */
 @media (min-width: 1800px) {
-  .display-page { padding: 56px 72px; gap: 36px; }
-  .display-layout { grid-template-columns: minmax(0, 2fr) minmax(420px, 1fr); gap: 32px; }
-  .counter-card { min-height: 320px; padding: 36px; }
+  .display-page { padding: clamp(20px, 2vw, 36px); gap: clamp(16px, 1.4vw, 24px); }
+  .display-layout { grid-template-columns: minmax(0, 2.6fr) minmax(380px, 1fr); gap: clamp(16px, 1.4vw, 28px); }
+  .counter-card { padding: clamp(20px, 1.8vw, 32px); }
 }
 
 /* ≤1200px — counter control narrows to 3 columns */
 /* counter-control-grid handles its own responsiveness via auto-fit */
 
-/* ≤1080px — display side panel collapses, counters stack 1 column on counter-control */
+/* ≤1080px — display side panel collapses (queue below counters) */
 @media (max-width: 1080px) {
-  .display-layout { grid-template-columns: 1fr; }
-  .display-clock { text-align: left; }
-  .display-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .display-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1.6fr) minmax(140px, 1fr);
+  }
   .side-panel { flex-direction: row; }
   .side-panel .list-box { flex: 1; }
+  .display-queue-list { max-height: 100%; }
 }
 
 /* ≤820px — side panel stacks again on smaller tablets */
 @media (max-width: 820px) {
   .side-panel { flex-direction: column; }
+  .display-clock { text-align: right; }
+}
+
+/* ≤640px — phone portrait: tighter padding, smaller header */
+@media (max-width: 640px) {
+  .display-page { padding: 10px 12px; gap: 10px; }
+  .display-header { flex-direction: row; align-items: center; gap: 10px; }
+  .display-brand-text { display: flex; flex-direction: column; min-width: 0; }
+  .display-meta { gap: 6px; font-size: 10px; }
+  .display-meta-text { display: none; }
+  .display-clock { text-align: right; }
+  .display-time { font-size: 22px; }
+  .display-date { font-size: 10px; margin-top: 2px; }
 }
 
 /* ≤900px — kiosk service grid: 2 cols */
@@ -3631,7 +3699,7 @@ a { color: inherit; text-decoration: none; }
   .kiosk-clock, .kiosk-brand-mark { text-align: center; justify-content: center; }
   .ticket-preview { padding: 18px; }
   .display-title { font-size: 20px; }
-  .counter-card { min-height: 200px; padding: 20px; }
+  .counter-card { padding: 20px; }
 }
 
 /* Portrait kiosk terminals — tuned for 1080 × 1900 touch screens */

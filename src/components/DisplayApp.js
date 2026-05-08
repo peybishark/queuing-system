@@ -244,12 +244,11 @@ export default function DisplayApp() {
           <div className="display-logo" style={logo ? { padding: 0, background: "#fff" } : undefined}>
             {logo ? <img src={logo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : (abbreviateName(orgName) || "Q")}
           </div>
-          <div>
-            <h1 className="display-title">Queuing System</h1>
+          <div className="display-brand-text">
+            <h1 className="display-title">{orgName || "Queuing System"}</h1>
             <div className="display-meta">
               <span className="live-pill"><span className="live-dot" />LIVE</span>
-              <span className="display-meta-sep">/</span>
-              <span>Queue Display{orgName ? ` · ${orgName}` : ""}</span>
+              <span className="display-meta-text">Queue Display</span>
             </div>
           </div>
         </div>
@@ -263,7 +262,7 @@ export default function DisplayApp() {
         <section className="display-main">
           <div className="display-section-head">
             <span className="section-tag">Now Serving</span>
-            <span className="section-count tabular">{servingCount} of {total}</span>
+            <span className="section-count tabular">{servingCount}/{total}</span>
           </div>
           {total === 0 ? (
             <div className="display-empty">
@@ -271,7 +270,7 @@ export default function DisplayApp() {
               <div className="display-empty-text">No counters configured yet.<br />Set up counters from Counter Control.</div>
             </div>
           ) : (
-            <div className="counter-grid">
+            <div className="counter-grid" data-count={Math.min(total, 6)}>
               {sorted.map((counter) => <CounterCard counter={counter} now={now} key={counter.id} />)}
             </div>
           )}
@@ -283,7 +282,7 @@ export default function DisplayApp() {
             <span className="section-count tabular">{waiting.length}</span>
           </div>
           <div className="display-queue-list">
-            {waiting.length ? waiting.slice(0, 8).map((ticket) => (
+            {waiting.length ? waiting.map((ticket) => (
               <QueueItem ticket={ticket} key={ticket.id} />
             )) : <div className="list-empty">No waiting tickets</div>}
           </div>
@@ -291,10 +290,6 @@ export default function DisplayApp() {
       </div>
 
       <footer className="display-footer">
-        {orgName ? <>
-          <span>{orgName}</span>
-          <span className="display-footer-sep">/</span>
-        </> : null}
         <span>Please wait for your number to be called</span>
       </footer>
     </main>

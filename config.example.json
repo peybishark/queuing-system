@@ -1,0 +1,8 @@
+{
+  "_comment": "Copy this to config.json and edit. Place beside the installed .exe (or in resources/ for shared install).",
+  "remoteUrl": "https://your-app.vercel.app",
+  "startupPath": "/kiosk",
+  "kiosk": true,
+  "fullscreen": true,
+  "printerName": ""
+}

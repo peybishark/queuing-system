@@ -149,6 +149,22 @@ export default function CounterApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idleKey, waiting.length, clientId]);
 
+  // Fire SMS notification for tickets close to being called whenever the
+  // queue order shifts (someone got called, completed, or cancelled). Server
+  // route handles atomic per-ticket locking so multiple counters won't double-send.
+  useEffect(() => {
+    if (!clientId) return;
+    const t = setTimeout(() => {
+      fetch("/api/notify-near", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId, orgName }),
+      }).catch(() => { /* silent */ });
+    }, 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId, orgName, waiting.length, idleKey]);
+
   async function handleResetQueue() {
     if (!confirm("Cancel all today's tickets? This cannot be undone.")) return;
     try {

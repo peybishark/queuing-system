@@ -15,6 +15,8 @@
     "electron:kiosk": "cross-env ELECTRON_KIOSK=1 electron .",
     "dist:electron": "next build && electron-builder",
     "dist:win": "next build && electron-builder --win",
+    "dist:win:portable": "next build && electron-builder --win --dir",
+    "pack:win": "next build && electron-packager . \"Queuing System\" --platform=win32 --arch=x64 --out=release --overwrite --icon=build/icon.ico --ignore=\"^/release($|/)\" --ignore=\"^/\\.git\" --ignore=\"^/\\.next/cache\"",
     "dist:mac": "next build && electron-builder --mac",
     "dist:linux": "next build && electron-builder --linux"
   },
@@ -25,6 +27,7 @@
     "react-dom": "^19.2.5"
   },
   "devDependencies": {
+    "@electron/packager": "^20.0.0",
     "concurrently": "^9.2.1",
     "electron": "^33.4.11",
     "electron-builder": "^25.1.8",
@@ -53,12 +56,21 @@
       {
         "from": ".env",
         "to": ".env"
+      },
+      {
+        "from": "config.example.json",
+        "to": "config.example.json"
       }
     ],
     "asar": false,
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "artifactName": "${productName}-${version}-Setup.${ext}"
     },
@@ -72,13 +84,24 @@
     },
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["x64", "arm64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "category": "public.app-category.business"
     },
     "linux": {
       "target": [
-        { "target": "AppImage", "arch": ["x64"] }
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "category": "Office"
     }
